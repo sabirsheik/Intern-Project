@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-a: #e0f2fe;
+  --bg-b: #fef9c3;
+  --bg-c: #fee2e2;
+  --card: rgba(255, 255, 255, 0.76);
+  --border: rgba(15, 23, 42, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Manrope', sans-serif;
+  color: #0f172a;
+  min-height: 100vh;
+  background: radial-gradient(circle at 10% 10%, var(--bg-a) 0%, transparent 38%),
+    radial-gradient(circle at 85% 15%, var(--bg-b) 0%, transparent 42%),
+    radial-gradient(circle at 50% 90%, var(--bg-c) 0%, transparent 45%),
+    #f8fafc;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Sora', sans-serif;
+}
+
+.glass-card {
+  background: var(--card);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+}
+
+.soft-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.soft-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.24);
+  border-radius: 999px;
+}
