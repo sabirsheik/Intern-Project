@@ -126,10 +126,10 @@ const TaskManagementPage = () => {
             {[
               { label: 'Dashboard', route: '/dashboard/intern' },
               { label: 'Tasks', route: '/tasks' },
-              { label: 'Attendance', route: '#' },
-              { label: 'Certificates', route: '#' },
-              { label: 'Notifications', route: '#' },
-              { label: 'Settings', route: '#' }
+              { label: 'Attendance', route: '/attendance' },
+              { label: 'Certificates', route: '/certificates' },
+              { label: 'Notifications', route: '/notifications' },
+              { label: 'Settings', route: '/settings' }
             ].map((item, index) => (
               <button
                 key={item.label}

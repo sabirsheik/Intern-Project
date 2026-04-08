@@ -21,14 +21,14 @@ const demoUsers = [
   },
   {
     id: 2,
-    name: 'Admin User',
+    name: 'Sarah Williams',
     email: 'admin@intern.com',
     password: 'password',
     role: 'admin'
   },
   {
     id: 3,
-    name: 'Intern User',
+    name: 'Michael Brown',
     email: 'intern@intern.com',
     password: 'password',
     role: 'intern'
