@@ -5,6 +5,7 @@ import DashboardPage from './pages/DashboardPage';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminTasksPage from './pages/AdminTasksPage';
+import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
 import InternDashboardPage from './pages/InternDashboardPage';
 import TaskManagementPage from './pages/TaskManagementPage';
 import AttendancePage from './pages/AttendancePage';
@@ -49,6 +50,7 @@ const App = () => {
         <Route path="/dashboard/admin" element={<AdminDashboard />} />
         <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/admin/tasks" element={<AdminTasksPage />} />
+        <Route path="/admin/submissions" element={<AdminSubmissionsPage />} />
       </Route>
 
       {/* Intern routes */}
