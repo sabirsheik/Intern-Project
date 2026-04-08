@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
 
 const roleDashboardPath = {
@@ -11,8 +10,33 @@ const roleDashboardPath = {
   intern: '/dashboard/intern'
 };
 
+// Demo users - NO BACKEND REQUIRED
+const demoUsers = [
+  {
+    id: 1,
+    name: 'Superadmin User',
+    email: 'superadmin@intern.com',
+    password: 'password',
+    role: 'superadmin'
+  },
+  {
+    id: 2,
+    name: 'Admin User',
+    email: 'admin@intern.com',
+    password: 'password',
+    role: 'admin'
+  },
+  {
+    id: 3,
+    name: 'Intern User',
+    email: 'intern@intern.com',
+    password: 'password',
+    role: 'intern'
+  }
+];
+
 const demoCredentials = [
-  { role: 'Super Admin', email: 'Superadmin@intern.com', password: 'password' },
+  { role: 'Super Admin', email: 'superadmin@intern.com', password: 'password' },
   { role: 'Admin', email: 'admin@intern.com', password: 'password' },
   { role: 'Intern', email: 'intern@intern.com', password: 'password' }
 ];
@@ -62,18 +86,42 @@ const LoginPage = () => {
     event.preventDefault();
     setLoading(true);
 
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 600));
+
     try {
-      const response = await axiosClient.post('/auth/login', {
-        email: formData.email,
-        password: formData.password
+      const email = formData.email.toLowerCase().trim();
+      const password = formData.password;
+
+      // Find user in demo data
+      const foundUser = demoUsers.find(
+        u => u.email.toLowerCase() === email && u.password === password
+      );
+
+      if (!foundUser) {
+        toast.error('Invalid email or password');
+        setLoading(false);
+        return;
+      }
+
+      // Mock token (for localStorage)
+      const token = `demo-token-${foundUser.id}-${Date.now()}`;
+
+      // Login with local data
+      login({
+        token,
+        user: {
+          id: foundUser.id,
+          name: foundUser.name,
+          email: foundUser.email,
+          role: foundUser.role
+        }
       });
 
-      login(response.data);
-      toast.success(`Welcome back, ${response.data.user.name}`);
-      navigate(roleDashboardPath[response.data.user.role] || '/dashboard', { replace: true });
+      toast.success(`Welcome back, ${foundUser.name}!`);
+      navigate(roleDashboardPath[foundUser.role], { replace: true });
     } catch (error) {
-      const message = error.response?.data?.message || 'Login failed';
-      toast.error(message);
+      toast.error('Login failed');
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import axiosClient from '../api/axiosClient';
@@ -29,6 +30,7 @@ const toDeadline = (value) => {
 
 const InternDashboardPage = () => {
   const { user, login, logout } = useAuth();
+  const navigate = useNavigate();
 
   const [dashboard, setDashboard] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -168,15 +170,28 @@ const InternDashboardPage = () => {
           </div>
 
           <nav className="px-3 pb-6 pt-2">
-            {['Dashboard', 'Tasks', 'Attendance', 'Certificates', 'Notifications', 'Settings'].map((item, index) => (
+            {[
+              { label: 'Dashboard', route: '/dashboard/intern' },
+              { label: 'Tasks', route: '/tasks' },
+              { label: 'Attendance', route: '#' },
+              { label: 'Certificates', route: '#' },
+              { label: 'Notifications', route: '#' },
+              { label: 'Settings', route: '#' }
+            ].map((item, index) => (
               <button
-                key={item}
+                key={item.label}
                 type="button"
-                className={`mb-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold ${index === 0 ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-100'}`}
+                onClick={() => item.route !== '#' && navigate(item.route)}
+                disabled={item.route === '#'}
+                className={`mb-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
+                  index === 0
+                    ? 'bg-slate-100 text-slate-900'
+                    : 'text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
               >
                 <span className="inline-block h-2 w-2 rounded-full bg-slate-400" />
-                {item}
-                {item === 'Notifications' && summary.notificationsCount > 0 && (
+                {item.label}
+                {item.label === 'Notifications' && summary.notificationsCount > 0 && (
                   <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-xs text-white">{summary.notificationsCount}</span>
                 )}
               </button>
