@@ -1,111 +1,136 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import TaskCard from '../components/TaskCard';
 import CreateTaskModal from '../components/CreateTaskModal';
+import { LoadingSpinner, SkeletonLoader } from '../components/LoadingSpinner';
+import { taskAPI } from '../api/apiService';
+import { formatApiError } from '../utils/apiHelpers';
 
 const TaskManagementPage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: 'Build a Responsive Portfolio Website',
-      description: 'Create a personal portfolio website using HTML, CSS, and JavaScript. The website should be fully responsive and...',
-      category: 'Web Development',
-      priority: 'high',
-      date: '4/22/2026',
-      duration: '20h',
-      assigned: 4,
-      points: 100
-    },
-    {
-      id: 2,
-      title: 'E-commerce Frontend 2',
-      description: 'Complete the E-commerce Frontend project according to domain standards and best practices.',
-      category: 'Web Development',
-      priority: 'high',
-      date: '4/15/2026',
-      duration: '10h',
-      assigned: 4,
-      points: 100
-    },
-    {
-      id: 3,
-      title: 'REST API Development 4',
-      description: 'Complete the REST API Development project according to domain standards and best practices.',
-      category: 'Web Development',
-      priority: 'urgent',
-      date: '4/9/2026',
-      duration: '27h',
-      assigned: 5,
-      points: 100
-    },
-    {
-      id: 4,
-      title: 'Authentication System 5',
-      description: 'Complete the Authentication System project according to domain standards and best practices.',
-      category: 'Web Development',
-      priority: 'high',
-      date: '4/27/2026',
-      duration: '17h',
-      assigned: 5,
-      points: 100
-    },
-    {
-      id: 5,
-      title: 'Dashboard Analytics 6',
-      description: 'Complete the Dashboard Analytics project according to domain standards and best practices.',
-      category: 'Web Development',
-      priority: 'medium',
-      date: '4/24/2026',
-      duration: '17h',
-      assigned: 5,
-      points: 100
-    }
-  ]);
-
-  const [loading, setLoading] = useState(false);
+  
+  // State management
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [filterPriority, setFilterPriority] = useState('All Priorities');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All Statuses');
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
+  const [deleting, setDeleting] = useState(null);
 
-  // Filter tasks based on search and priority
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPriority = filterPriority === 'All Priorities' || task.priority === filterPriority.toLowerCase();
-    return matchesSearch && matchesPriority;
-  });
+  /**
+   * Fetch tasks from API
+   */
+  const fetchTasks = useCallback(async (page = 1) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const status = filterStatus !== 'All Statuses' ? filterStatus.toLowerCase() : null;
+      const response = await taskAPI.getAllTasks(page, 10, status);
+      
+      if (response?.success) {
+        setTasks(response.data?.data || []);
+        setPagination(response.data?.pagination || {});
+      } else {
+        setError(response?.message || 'Failed to fetch tasks');
+        toast.error(response?.message || 'Failed to fetch tasks');
+      }
+    } catch (err) {
+      const errorMsg = formatApiError(err);
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  }, [filterStatus]);
 
-  const handleDeleteTask = (id) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      setTasks(tasks.filter(task => task.id !== id));
-      toast.success('Task deleted successfully');
+  /**
+   * Load tasks on mount and when filters change
+   */
+  useEffect(() => {
+    fetchTasks(1);
+  }, [filterStatus]);
+
+  /**
+   * Handle task deletion
+   */
+  const handleDeleteTask = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this task?')) return;
+
+    try {
+      setDeleting(id);
+      const response = await taskAPI.deleteTask(id);
+      
+      if (response?.success) {
+        setTasks(tasks.filter(task => task.id !== id));
+        toast.success('Task deleted successfully');
+      } else {
+        toast.error(response?.message || 'Failed to delete task');
+      }
+    } catch (err) {
+      const errorMsg = formatApiError(err);
+      toast.error(errorMsg);
+    } finally {
+      setDeleting(null);
     }
   };
 
-  const handleEditTask = (id) => {
-    toast.info('Edit task - Coming soon');
+  /**
+   * Handle task status update
+   */
+  const handleUpdateTaskStatus = async (id, newStatus) => {
+    try {
+      const response = await taskAPI.updateTaskStatus(id, newStatus);
+      
+      if (response?.success) {
+        const updatedTask = response.data;
+        setTasks(tasks.map(task => task.id === id ? updatedTask : task));
+        toast.success('Task status updated successfully');
+      } else {
+        toast.error(response?.message || 'Failed to update task status');
+      }
+    } catch (err) {
+      const errorMsg = formatApiError(err);
+      toast.error(errorMsg);
+    }
   };
 
-  const handleViewTask = (id) => {
-    toast.info('View task details - Coming soon');
+  /**
+   * Handle create task
+   */
+  const handleCreateTask = async (newTaskData) => {
+    try {
+      const response = await taskAPI.createTask(newTaskData);
+      
+      if (response?.success) {
+        setTasks([response.data, ...tasks]);
+        toast.success('Task created successfully');
+        setShowCreateModal(false);
+        // Refresh to update pagination
+        fetchTasks(1);
+      } else {
+        toast.error(response?.message || 'Failed to create task');
+      }
+    } catch (err) {
+      const errorMsg = formatApiError(err);
+      toast.error(errorMsg);
+    }
   };
 
-  const handleCreateTask = (newTask) => {
-    const task = {
-      id: Math.max(...tasks.map(t => t.id), 0) + 1,
-      ...newTask,
-      assigned: Math.floor(Math.random() * 5) + 1,
-      points: 100
-    };
-    setTasks([...tasks, task]);
-    toast.success('Task created successfully');
-    setShowCreateModal(false);
-  };
-
+  /**
+   * Filter tasks based on search query
+   */
+  const filteredTasks = tasks.filter(task => 
+    task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    task.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
@@ -130,16 +155,15 @@ const TaskManagementPage = () => {
               { label: 'Certificates', route: '/certificates' },
               { label: 'Notifications', route: '/notifications' },
               { label: 'Settings', route: '/settings' }
-            ].map((item, index) => (
+            ].map((item) => (
               <button
                 key={item.label}
                 type="button"
-                onClick={() => item.route !== '#' && navigate(item.route)}
-                disabled={item.route === '#'}
+                onClick={() => navigate(item.route)}
                 className={`mb-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
                   item.label === 'Tasks'
                     ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                    : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
                 <span className="inline-block h-2 w-2 rounded-full bg-slate-400" />
@@ -155,8 +179,12 @@ const TaskManagementPage = () => {
                 <p className="text-sm font-bold text-slate-900">{user?.name}</p>
                 <p className="text-xs text-slate-500">Intern</p>
               </div>
-              <button type="button" onClick={logout} className="ml-auto text-sm font-bold text-slate-500 hover:text-slate-800">
-                ⚙
+              <button 
+                type="button" 
+                onClick={logout} 
+                className="ml-auto text-sm font-bold text-slate-500 hover:text-slate-800"
+              >
+                Logout
               </button>
             </div>
           </div>
@@ -169,13 +197,14 @@ const TaskManagementPage = () => {
             <div className="flex items-center justify-between gap-4">
               <h1 className="text-4xl font-extrabold">Task Management</h1>
               <div className="flex items-center gap-3">
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="w-48 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-slate-400 md:w-64"
-                />
-                <button type="button" className="text-lg">◔</button>
-                <button type="button" className="relative text-lg">⌂</button>
+                <button 
+                  type="button" 
+                  onClick={() => fetchTasks(1)}
+                  className="text-lg hover:opacity-70 transition"
+                  title="Refresh tasks"
+                >
+                  🔄
+                </button>
               </div>
             </div>
           </header>
@@ -200,7 +229,7 @@ const TaskManagementPage = () => {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search tasks..."
+                  placeholder="Search tasks by title or description..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition"
@@ -208,15 +237,14 @@ const TaskManagementPage = () => {
               </div>
 
               <select
-                value={filterPriority}
-                onChange={(e) => setFilterPriority(e.target.value)}
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
                 className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition bg-white"
               >
-                <option>All Priorities</option>
-                <option>high</option>
-                <option>urgent</option>
-                <option>medium</option>
-                <option>low</option>
+                <option>All Statuses</option>
+                <option>Pending</option>
+                <option>In Progress</option>
+                <option>Completed</option>
               </select>
 
               <motion.button
@@ -230,40 +258,95 @@ const TaskManagementPage = () => {
               </motion.button>
             </motion.div>
 
-            {/* Tasks Grid */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            >
-              {filteredTasks.length > 0 ? (
-                filteredTasks.map((task, index) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onDelete={handleDeleteTask}
-                    onEdit={handleEditTask}
-                    onView={handleViewTask}
-                    index={index}
-                  />
-                ))
-              ) : (
+            {/* Error State */}
+            {error && !loading && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3"
+              >
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                <div className="flex-1">
+                  <p className="text-red-800 font-semibold">Error loading tasks</p>
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+                <button
+                  onClick={() => fetchTasks(1)}
+                  className="text-red-600 hover:text-red-800 font-semibold whitespace-nowrap"
+                >
+                  Retry
+                </button>
+              </motion.div>
+            )}
+
+            {/* Loading State */}
+            {loading ? (
+              <SkeletonLoader count={6} />
+            ) : filteredTasks.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="col-span-full py-12 text-center"
+              >
+                <p className="text-slate-500 text-lg">No tasks found. Try adjusting your search or filters.</p>
+              </motion.div>
+            ) : (
+              <>
+                {/* Tasks Grid */}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="col-span-full py-12 text-center"
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
-                  <p className="text-slate-500 text-lg">No tasks found. Try adjusting your search or filters.</p>
+                  {filteredTasks.map((task, index) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onDelete={handleDeleteTask}
+                      onStatusChange={handleUpdateTaskStatus}
+                      isDeleting={deleting === task.id}
+                      index={index}
+                    />
+                  ))}
                 </motion.div>
-              )}
-            </motion.div>
+
+                {/* Pagination Controls */}
+                {pagination.totalPages > 1 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="mt-8 flex items-center justify-center gap-4"
+                  >
+                    <button
+                      onClick={() => fetchTasks(Math.max(1, pagination.page - 1))}
+                      disabled={pagination.page === 1}
+                      className="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-slate-600">
+                      Page {pagination.page} of {pagination.totalPages}
+                    </span>
+                    <button
+                      onClick={() => fetchTasks(Math.min(pagination.totalPages, pagination.page + 1))}
+                      disabled={pagination.page >= pagination.totalPages}
+                      className="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      Next
+                    </button>
+                  </motion.div>
+                )}
+              </>
+            )}
 
             {/* Create Task Modal */}
             {showCreateModal && (
               <CreateTaskModal
                 onClose={() => setShowCreateModal(false)}
                 onCreate={handleCreateTask}
+                currentUser={user}
               />
             )}
           </div>

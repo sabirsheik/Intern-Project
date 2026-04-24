@@ -54,15 +54,29 @@ const InternDashboardPage = () => {
         axiosClient.get('/intern/notifications')
       ]);
 
-      setDashboard(dashboardResponse.data);
-      setTasks(tasksResponse.data.data || []);
-      setPagination((prev) => ({
-        ...prev,
-        ...tasksResponse.data.pagination
-      }));
-      setNotifications(notificationsResponse.data || []);
+      // Dashboard: { success, message, data: { user, summary, charts, ... } }
+      const dashboardData = dashboardResponse.data?.data;
+      setDashboard(dashboardData);
 
-      const profile = dashboardResponse.data?.user;
+      // Tasks: { success, message, data: { data: [...], pagination: {...} } }
+      const tasksData = tasksResponse.data?.data?.data;
+      const tasksDataArray = Array.isArray(tasksData) ? tasksData : [];
+      setTasks(tasksDataArray);
+      
+      const paginationData = tasksResponse.data?.data?.pagination;
+      if (paginationData) {
+        setPagination((prev) => ({
+          ...prev,
+          ...paginationData
+        }));
+      }
+
+      // Notifications: { success, message, data: [...] }
+      const notificationsData = notificationsResponse.data?.data;
+      const notificationsArray = Array.isArray(notificationsData) ? notificationsData : [];
+      setNotifications(notificationsArray);
+
+      const profile = dashboardData?.user;
       if (profile) {
         setProfileForm({ name: profile.name || '', email: profile.email || '' });
       }
@@ -146,13 +160,16 @@ const InternDashboardPage = () => {
   const taskCompletionPercent = summary.totalTasks === 0 ? 0 : Math.round((summary.completedTasks / summary.totalTasks) * 100);
 
   const filteredTasks = useMemo(() => {
+    // Ensure tasks is always an array
+    const taskArray = Array.isArray(tasks) ? tasks : [];
+    
     if (activeTab === 'tasks') {
-      return tasks;
+      return taskArray;
     }
     if (activeTab === 'progress') {
-      return tasks.filter((task) => task.status === 'in_progress' || task.status === 'pending');
+      return taskArray.filter((task) => task.status === 'in_progress' || task.status === 'pending');
     }
-    return tasks.filter((task) => task.status === 'completed');
+    return taskArray.filter((task) => task.status === 'completed');
   }, [tasks, activeTab]);
 
   return (
@@ -432,7 +449,7 @@ const InternDashboardPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    {filteredTasks.map((task) => (
+                    {Array.isArray(filteredTasks) && filteredTasks.map((task) => (
                       <div key={task.id} className="rounded-xl border border-slate-200 px-4 py-3">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>

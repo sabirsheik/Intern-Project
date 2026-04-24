@@ -1,12 +1,12 @@
 const { Internship, User, InternAssignment } = require('../models');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendSuccess, sendError } = require('../utils/responseHandler');
 
 const createInternship = asyncHandler(async (req, res) => {
   const { title, description, domain } = req.body;
 
   if (!title || !description || !domain) {
-    res.status(400);
-    throw new Error('Title, description, and domain are required');
+    return sendError(res, 'Title, description, and domain are required', 400);
   }
 
   const internship = await Internship.create({
@@ -16,7 +16,7 @@ const createInternship = asyncHandler(async (req, res) => {
     created_by: req.user.id
   });
 
-  res.status(201).json(internship);
+  sendSuccess(res, internship, 'Internship created successfully', 201);
 });
 
 const getInternships = asyncHandler(async (req, res) => {
@@ -39,7 +39,7 @@ const getInternships = asyncHandler(async (req, res) => {
       internship: item.internship
     }));
 
-    return res.status(200).json(internInternships);
+    return sendSuccess(res, internInternships, 'Internships retrieved successfully', 200);
   }
 
   const internships = await Internship.findAll({
@@ -47,7 +47,7 @@ const getInternships = asyncHandler(async (req, res) => {
     order: [['id', 'DESC']]
   });
 
-  return res.status(200).json(internships);
+  return sendSuccess(res, internships, 'Internships retrieved successfully', 200);
 });
 
 module.exports = {

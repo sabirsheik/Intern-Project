@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
+import axiosClient from '../api/axiosClient';
 
 const roleDashboardPath = {
   superadmin: '/dashboard/superadmin',
@@ -10,33 +11,9 @@ const roleDashboardPath = {
   intern: '/dashboard/intern'
 };
 
-// Demo users - NO BACKEND REQUIRED
-const demoUsers = [
-  {
-    id: 1,
-    name: 'Superadmin User',
-    email: 'superadmin@intern.com',
-    password: 'password',
-    role: 'superadmin'
-  },
-  {
-    id: 2,
-    name: 'Sarah Williams',
-    email: 'admin@intern.com',
-    password: 'password',
-    role: 'admin'
-  },
-  {
-    id: 3,
-    name: 'Michael Brown',
-    email: 'intern@intern.com',
-    password: 'password',
-    role: 'intern'
-  }
-];
-
+// Demo credentials for quick login
 const demoCredentials = [
-  { role: 'Super Admin', email: 'superadmin@intern.com', password: 'password' },
+  { role: 'Super Admin', email: 'Superadmin@intern.com', password: 'password' },
   { role: 'Admin', email: 'admin@intern.com', password: 'password' },
   { role: 'Intern', email: 'intern@intern.com', password: 'password' }
 ];
@@ -86,42 +63,36 @@ const LoginPage = () => {
     event.preventDefault();
     setLoading(true);
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 600));
-
     try {
-      const email = formData.email.toLowerCase().trim();
+      const email = formData.email.trim();
       const password = formData.password;
 
-      // Find user in demo data
-      const foundUser = demoUsers.find(
-        u => u.email.toLowerCase() === email && u.password === password
-      );
-
-      if (!foundUser) {
-        toast.error('Invalid email or password');
-        setLoading(false);
-        return;
-      }
-
-      // Mock token (for localStorage)
-      const token = `demo-token-${foundUser.id}-${Date.now()}`;
-
-      // Login with local data
-      login({
-        token,
-        user: {
-          id: foundUser.id,
-          name: foundUser.name,
-          email: foundUser.email,
-          role: foundUser.role
-        }
+      // Call backend login API
+      const response = await axiosClient.post('/auth/login', {
+        email,
+        password
       });
 
-      toast.success(`Welcome back, ${foundUser.name}!`);
-      navigate(roleDashboardPath[foundUser.role], { replace: true });
+      if (response.data.success) {
+        const { token, user } = response.data.data;
+
+        // Store in context and localStorage
+        login({
+          token,
+          user
+        });
+
+        toast.success(`Welcome back, ${user.name}!`);
+        navigate(roleDashboardPath[user.role], { replace: true });
+      } else {
+        toast.error(response.data.message || 'Login failed');
+      }
     } catch (error) {
-      toast.error('Login failed');
+      const errorMessage = 
+        error.response?.data?.message || 
+        error.response?.data?.error || 
+        'Invalid email or password';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { fn, col, where: sequelizeWhere } = require('sequelize');
 const { User, Task, Notification } = require('../models');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendSuccess, sendError } = require('../utils/responseHandler');
 
 const formatTask = (task) => ({
   id: task.id,
@@ -57,7 +58,7 @@ const getInternDashboard = asyncHandler(async (req, res) => {
     { name: 'Code Quality', value: Math.min(98, Math.max(58, Math.round(averageGrade + 12))) }
   ];
 
-  res.status(200).json({
+  sendSuccess(res, {
     user: {
       id: req.user.id,
       name: req.user.name,
@@ -82,7 +83,7 @@ const getInternDashboard = asyncHandler(async (req, res) => {
       skills
     },
     upcomingTasks: tasks.slice(0, 3).map(formatTask)
-  });
+  }, 'Dashboard data retrieved successfully', 200);
 });
 
 const getInternTasks = asyncHandler(async (req, res) => {
@@ -104,7 +105,7 @@ const getInternTasks = asyncHandler(async (req, res) => {
     offset
   });
 
-  res.status(200).json({
+  sendSuccess(res, {
     data: rows.map(formatTask),
     pagination: {
       page,
@@ -112,7 +113,7 @@ const getInternTasks = asyncHandler(async (req, res) => {
       total: count,
       totalPages: Math.ceil(count / limit)
     }
-  });
+  }, 'Tasks retrieved successfully', 200);
 });
 
 const updateTaskStatus = asyncHandler(async (req, res) => {
@@ -120,15 +121,13 @@ const updateTaskStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
 
   if (!['pending', 'in_progress', 'completed'].includes(status)) {
-    res.status(400);
-    throw new Error('Invalid status');
+    return sendError(res, 'Invalid status', 400);
   }
 
   const task = await Task.findOne({ where: { id, intern_id: req.user.id } });
 
   if (!task) {
-    res.status(404);
-    throw new Error('Task not found');
+    return sendError(res, 'Task not found', 404);
   }
 
   task.status = status;
@@ -138,7 +137,7 @@ const updateTaskStatus = asyncHandler(async (req, res) => {
 
   await task.save();
 
-  res.status(200).json({ message: 'Task status updated', task: formatTask(task) });
+  sendSuccess(res, formatTask(task), 'Task status updated successfully', 200);
 });
 
 const submitTask = asyncHandler(async (req, res) => {
@@ -147,15 +146,14 @@ const submitTask = asyncHandler(async (req, res) => {
   const task = await Task.findOne({ where: { id, intern_id: req.user.id } });
 
   if (!task) {
-    res.status(404);
-    throw new Error('Task not found');
+    return sendError(res, 'Task not found', 404);
   }
 
   task.status = 'completed';
   task.submitted_at = new Date();
   await task.save();
 
-  res.status(200).json({ message: 'Task submitted successfully', task: formatTask(task) });
+  sendSuccess(res, formatTask(task), 'Task submitted successfully', 200);
 });
 
 const getInternNotifications = asyncHandler(async (req, res) => {
@@ -167,15 +165,14 @@ const getInternNotifications = asyncHandler(async (req, res) => {
     limit: 20
   });
 
-  res.status(200).json(notifications);
+  sendSuccess(res, notifications, 'Notifications retrieved successfully', 200);
 });
 
 const updateInternProfile = asyncHandler(async (req, res) => {
   const { name, email } = req.body;
 
   if (!name || !email) {
-    res.status(400);
-    throw new Error('Name and email are required');
+    return sendError(res, 'Name and email are required', 400);
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -184,8 +181,7 @@ const updateInternProfile = asyncHandler(async (req, res) => {
     where: sequelizeWhere(fn('lower', col('email')), normalizedEmail)
   });
   if (existing && existing.id !== req.user.id) {
-    res.status(409);
-    throw new Error('Email is already in use');
+    return sendError(res, 'Email is already in use', 409);
   }
 
   const user = await User.findByPk(req.user.id);
@@ -193,15 +189,12 @@ const updateInternProfile = asyncHandler(async (req, res) => {
   user.email = normalizedEmail;
   await user.save();
 
-  res.status(200).json({
-    message: 'Profile updated successfully',
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role
-    }
-  });
+  sendSuccess(res, {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  }, 'Profile updated successfully', 200);
 });
 
 module.exports = {

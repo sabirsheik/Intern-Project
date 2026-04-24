@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -22,6 +22,18 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
   };
+
+  // Listen for auth:logout events from axiosClient
+  useEffect(() => {
+    const handleLogout = () => {
+      logout();
+      // Redirect to login page
+      window.location.href = '/';
+    };
+
+    window.addEventListener('auth:logout', handleLogout);
+    return () => window.removeEventListener('auth:logout', handleLogout);
+  }, []);
 
   const value = useMemo(
     () => ({

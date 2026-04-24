@@ -3,13 +3,14 @@ const { fn, col, where: sequelizeWhere } = require('sequelize');
 const { User } = require('../models');
 const generateToken = require('../utils/generateToken');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendSuccess, sendError } = require('../utils/responseHandler');
 
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
+  // Validation
   if (!email || !password) {
-    res.status(400);
-    throw new Error('Email and password are required');
+    return sendError(res, 'Email and password are required', 400);
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -19,8 +20,7 @@ const login = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    res.status(401);
-    throw new Error('Invalid credentials');
+    return sendError(res, 'Invalid credentials', 401);
   }
 
   let isMatch = false;
@@ -28,7 +28,7 @@ const login = asyncHandler(async (req, res) => {
   if (typeof user.password === 'string' && user.password.startsWith('$2')) {
     isMatch = await bcrypt.compare(password, user.password);
   } else {
-    // Backward compatibility: migrate legacy plain-text password to hash on successful login.
+    // Backward compatibility: migrate legacy plain-text password to hash on successful login
     isMatch = user.password === password;
     if (isMatch) {
       user.password = await bcrypt.hash(password, 10);
@@ -37,14 +37,12 @@ const login = asyncHandler(async (req, res) => {
   }
 
   if (!isMatch) {
-    res.status(401);
-    throw new Error('Invalid credentials');
+    return sendError(res, 'Invalid credentials', 401);
   }
 
   const token = generateToken({ id: user.id, role: user.role });
 
-  res.status(200).json({
-    message: 'Login successful',
+  sendSuccess(res, {
     token,
     user: {
       id: user.id,
@@ -52,20 +50,19 @@ const login = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role
     }
-  });
+  }, 'Login successful', 200);
 });
 
 const register = asyncHandler(async (req, res) => {
   const { name, email, password, role = 'intern' } = req.body;
 
+  // Validation
   if (!name || !email || !password) {
-    res.status(400);
-    throw new Error('Name, email, and password are required');
+    return sendError(res, 'Name, email, and password are required', 400);
   }
 
   if (!['superadmin', 'admin', 'intern'].includes(role)) {
-    res.status(400);
-    throw new Error('Invalid role');
+    return sendError(res, 'Invalid role', 400);
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -75,8 +72,7 @@ const register = asyncHandler(async (req, res) => {
   });
 
   if (existingUser) {
-    res.status(409);
-    throw new Error('User with this email already exists');
+    return sendError(res, 'User with this email already exists', 409);
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -87,15 +83,17 @@ const register = asyncHandler(async (req, res) => {
     role
   });
 
-  res.status(201).json({
-    message: 'User registered successfully',
+  const token = generateToken({ id: createdUser.id, role: createdUser.role });
+
+  sendSuccess(res, {
+    token,
     user: {
       id: createdUser.id,
       name: createdUser.name,
       email: createdUser.email,
       role: createdUser.role
     }
-  });
+  }, 'User registered successfully', 201);
 });
 
 module.exports = {

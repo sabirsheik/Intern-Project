@@ -8,6 +8,7 @@ const internshipRoutes = require('./routes/internshipRoutes');
 const assignmentRoutes = require('./routes/assignmentRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const internRoutes = require('./routes/internRoutes');
+const taskRoutes = require('./routes/taskRoutes');
 const bootstrapDemoData = require('./utils/bootstrapDemoData');
 const { notFound, errorHandler } = require('./middlewares/errorMiddleware');
 
@@ -19,7 +20,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+  res.status(200).json({ success: true, message: 'Server is healthy', data: null, error: null });
 });
 
 app.use('/api/auth', authRoutes);
@@ -29,6 +30,7 @@ app.use('/api/assign', assignmentRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/intern', internRoutes);
+app.use('/api/tasks', taskRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -42,10 +44,10 @@ const startServer = async () => {
     await bootstrapDemoData();
 
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`✅ Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('Server startup error:', error.message);
+    console.error('❌ Server startup error:', error.message);
     process.exit(1);
   }
 };

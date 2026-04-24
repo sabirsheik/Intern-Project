@@ -1,24 +1,22 @@
 const { InternAssignment, Internship, User } = require('../models');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendSuccess, sendError } = require('../utils/responseHandler');
 
 const assignInternship = asyncHandler(async (req, res) => {
   const { intern_id, internship_id, status = 'active' } = req.body;
 
   if (!intern_id || !internship_id) {
-    res.status(400);
-    throw new Error('intern_id and internship_id are required');
+    return sendError(res, 'intern_id and internship_id are required', 400);
   }
 
   const intern = await User.findByPk(intern_id);
   if (!intern || intern.role !== 'intern') {
-    res.status(404);
-    throw new Error('Intern user not found');
+    return sendError(res, 'Intern user not found', 404);
   }
 
   const internship = await Internship.findByPk(internship_id);
   if (!internship) {
-    res.status(404);
-    throw new Error('Internship not found');
+    return sendError(res, 'Internship not found', 404);
   }
 
   const existing = await InternAssignment.findOne({
@@ -26,8 +24,7 @@ const assignInternship = asyncHandler(async (req, res) => {
   });
 
   if (existing) {
-    res.status(409);
-    throw new Error('This intern is already assigned to this internship');
+    return sendError(res, 'This intern is already assigned to this internship', 409);
   }
 
   const assignment = await InternAssignment.create({
@@ -36,7 +33,7 @@ const assignInternship = asyncHandler(async (req, res) => {
     status
   });
 
-  res.status(201).json(assignment);
+  sendSuccess(res, assignment, 'Internship assigned successfully', 201);
 });
 
 const getAssignments = asyncHandler(async (req, res) => {
@@ -51,7 +48,7 @@ const getAssignments = asyncHandler(async (req, res) => {
     order: [['id', 'DESC']]
   });
 
-  res.status(200).json(assignments);
+  sendSuccess(res, assignments, 'Assignments retrieved successfully', 200);
 });
 
 module.exports = {

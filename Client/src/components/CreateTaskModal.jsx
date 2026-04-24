@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { X } from 'lucide-react';
 
-const CreateTaskModal = ({ onClose, onCreate }) => {
+const CreateTaskModal = ({ onClose, onCreate, currentUser }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'Web Development',
-    priority: 'medium',
-    date: '',
-    duration: '',
-    maxScore: 100,
-    estimatedHours: 10
+    deadline: '',
+    status: 'pending',
+    estimated_hours: 8
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,7 +18,7 @@ const CreateTaskModal = ({ onClose, onCreate }) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'estimated_hours' ? Number(value) : value
     }));
   };
 
@@ -38,37 +36,42 @@ const CreateTaskModal = ({ onClose, onCreate }) => {
       return;
     }
 
-    if (!formData.date) {
-      toast.error('Due date is required');
+    if (!formData.deadline) {
+      toast.error('Deadline is required');
+      return;
+    }
+
+    // Validate deadline is in future
+    if (new Date(formData.deadline) < new Date()) {
+      toast.error('Deadline must be in the future');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      onCreate({
+      // Note: For interns, they cannot create tasks for themselves
+      // This modal would typically be for admins to create tasks
+      // The currentUser is passed for reference
+      const taskData = {
         title: formData.title,
         description: formData.description,
-        category: formData.category,
-        priority: formData.priority,
-        date: new Date(formData.date).toLocaleDateString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric' }),
-        duration: `${formData.estimatedHours}h`,
-        points: parseInt(formData.maxScore)
-      });
+        deadline: formData.deadline,
+        status: formData.status,
+        estimated_hours: formData.estimated_hours
+      };
 
+      await onCreate(taskData);
+
+      // Reset form
       setFormData({
         title: '',
         description: '',
-        category: 'Web Development',
-        priority: 'medium',
-        date: '',
-        duration: '',
-        maxScore: 100,
-        estimatedHours: 10
+        deadline: '',
+        status: 'pending',
+        estimated_hours: 8
       });
+      onClose();
     } catch (error) {
       toast.error('Failed to create task');
     } finally {
@@ -80,15 +83,16 @@ const CreateTaskModal = ({ onClose, onCreate }) => {
     setFormData({
       title: '',
       description: '',
-      category: 'Web Development',
-      priority: 'medium',
-      date: '',
-      duration: '',
-      maxScore: 100,
-      estimatedHours: 10
+      deadline: '',
+      status: 'pending',
+      estimated_hours: 8
     });
     onClose();
   };
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = tomorrow.toISOString().split('T')[0];
 
   return (
     <>
@@ -117,9 +121,7 @@ const CreateTaskModal = ({ onClose, onCreate }) => {
               onClick={handleCancel}
               className="text-slate-400 hover:text-slate-600 transition p-1 rounded-lg hover:bg-slate-100"
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+              <X className="w-5 h-5" />
             </button>
           </div>
 
@@ -127,103 +129,75 @@ const CreateTaskModal = ({ onClose, onCreate }) => {
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
             {/* Task Title */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Task Title</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Task Title *</label>
               <input
                 type="text"
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
                 placeholder="e.g., Build a Portfolio Website"
+                maxLength={255}
                 className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition"
               />
+              <p className="text-xs text-slate-500 mt-1">{formData.title.length}/255</p>
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Description</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Description *</label>
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
-                placeholder="Describe the task requirements..."
-                rows="3"
+                placeholder="Describe the task requirements and expectations..."
+                rows="4"
                 className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition resize-none"
               />
+              <p className="text-xs text-slate-500 mt-1">{formData.description.length} characters</p>
             </div>
 
-            {/* Domain & Priority Row */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Domain</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition"
-                >
-                  <option>Web Development</option>
-                  <option>Mobile Development</option>
-                  <option>Backend Development</option>
-                  <option>Data Science</option>
-                  <option>UI/UX Design</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Priority</label>
-                <select
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Due Date */}
+            {/* Deadline */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Deadline *</label>
               <input
                 type="date"
-                name="date"
-                value={formData.date}
+                name="deadline"
+                value={formData.deadline}
                 onChange={handleChange}
+                min={minDate}
                 className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition"
               />
+              <p className="text-xs text-slate-500 mt-1">Must be in the future</p>
             </div>
 
-            {/* Max Score & Est. Hours Row */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Max Score</label>
-                <input
-                  type="number"
-                  name="maxScore"
-                  value={formData.maxScore}
-                  onChange={handleChange}
-                  min="10"
-                  max="1000"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition"
-                />
-              </div>
+            {/* Estimated Hours */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Estimated Hours *</label>
+              <input
+                type="number"
+                name="estimated_hours"
+                value={formData.estimated_hours}
+                onChange={handleChange}
+                min="1"
+                max="1000"
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition"
+              />
+              <p className="text-xs text-slate-500 mt-1">Expected time to complete (1-1000 hours)</p>
+            </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Est. Hours</label>
-                <input
-                  type="number"
-                  name="estimatedHours"
-                  value={formData.estimatedHours}
-                  onChange={handleChange}
-                  min="1"
-                  max="100"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition"
-                />
-              </div>
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Initial Status</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition"
+              >
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
             </div>
 
             {/* Buttons */}
@@ -238,9 +212,16 @@ const CreateTaskModal = ({ onClose, onCreate }) => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition disabled:opacity-70 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isSubmitting ? 'Creating...' : 'Create Task'}
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Task'
+                )}
               </button>
             </div>
           </form>

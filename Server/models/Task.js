@@ -11,19 +11,33 @@ const Task = sequelize.define(
     },
     intern_id: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: false,
+      references: {
+        model: 'users',
+        key: 'id'
+      }
     },
     title: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      validate: {
+        notEmpty: true,
+        len: [1, 255]
+      }
     },
     description: {
       type: DataTypes.TEXT,
-      allowNull: false
+      allowNull: false,
+      validate: {
+        notEmpty: true
+      }
     },
     deadline: {
       type: DataTypes.DATEONLY,
-      allowNull: false
+      allowNull: false,
+      validate: {
+        isDate: true
+      }
     },
     status: {
       type: DataTypes.ENUM('pending', 'in_progress', 'completed'),
@@ -33,7 +47,11 @@ const Task = sequelize.define(
     estimated_hours: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: 8
+      defaultValue: 8,
+      validate: {
+        min: 1,
+        max: 1000
+      }
     },
     submitted_at: {
       type: DataTypes.DATE,

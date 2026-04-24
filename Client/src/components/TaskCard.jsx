@@ -1,27 +1,55 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Trash2, Edit2, Eye, Check } from 'lucide-react';
 
-const priorityStyles = {
-  urgent: 'bg-red-100 text-red-700',
-  high: 'bg-red-100 text-red-700',
-  medium: 'bg-slate-900 text-white',
-  low: 'bg-slate-100 text-slate-700'
+const statusStyles = {
+  pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending' },
+  in_progress: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'In Progress' },
+  completed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Completed' }
 };
 
-const TaskCard = ({ task, onDelete, onEdit, onView, index }) => {
+const TaskCard = ({ task, onDelete, onStatusChange, isDeleting = false, index = 0 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const statusInfo = statusStyles[task.status] || statusStyles.pending;
+
+  const handleStatusChange = async (newStatus) => {
+    setUpdatingStatus(true);
+    try {
+      await onStatusChange(task.id, newStatus);
+    } finally {
+      setUpdatingStatus(false);
+      setShowMenu(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'No deadline';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
+      whileHover={{ y: -5 }}
       className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden hover:shadow-xl transition group"
+      style={{ opacity: isDeleting ? 0.5 : 1 }}
     >
-      {/* Card Header with Priority and Menu */}
+      {/* Card Header with Status and Menu */}
       <div className="p-6 pb-4 flex items-start justify-between">
-        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${priorityStyles[task.priority]}`}>
-          {task.priority}
+        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${statusInfo.bg} ${statusInfo.text}`}>
+          {statusInfo.label}
         </span>
 
         {/* Three-Dot Menu */}
@@ -30,7 +58,8 @@ const TaskCard = ({ task, onDelete, onEdit, onView, index }) => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowMenu(!showMenu)}
-            className="text-slate-400 hover:text-slate-600 transition p-1 rounded-lg hover:bg-slate-100"
+            disabled={isDeleting}
+            className="text-slate-400 hover:text-slate-600 transition p-1 rounded-lg hover:bg-slate-100 disabled:opacity-50"
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <circle cx="12" cy="5" r="2" />
@@ -47,43 +76,34 @@ const TaskCard = ({ task, onDelete, onEdit, onView, index }) => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: -10 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-xl border border-slate-200 z-50"
+                className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 z-50"
               >
-                <button
-                  onClick={() => {
-                    onView(task.id);
-                    setShowMenu(false);
-                  }}
-                  className="flex items-center gap-2 px-4 py-3 text-slate-700 hover:bg-slate-50 w-full text-left transition"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                  View
-                </button>
-                <button
-                  onClick={() => {
-                    onEdit(task.id);
-                    setShowMenu(false);
-                  }}
-                  className="flex items-center gap-2 px-4 py-3 text-slate-700 hover:bg-slate-50 w-full text-left border-t border-slate-200 transition"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit
-                </button>
+                {/* Status Change Options */}
+                <div className="border-b border-slate-200">
+                  <p className="text-xs font-semibold text-slate-500 px-4 py-2 uppercase">Change Status</p>
+                  {Object.entries(statusStyles).map(([status, { label }]) => (
+                    <button
+                      key={status}
+                      onClick={() => handleStatusChange(status)}
+                      disabled={updatingStatus || task.status === status}
+                      className="w-full text-left px-4 py-2 text-slate-700 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {task.status === status && <Check className="w-4 h-4 text-green-600" />}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Delete Button */}
                 <button
                   onClick={() => {
                     onDelete(task.id);
                     setShowMenu(false);
                   }}
-                  className="flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 w-full text-left border-t border-slate-200 transition"
+                  disabled={isDeleting}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  <Trash2 className="w-4 h-4" />
                   Delete
                 </button>
               </motion.div>
@@ -94,48 +114,54 @@ const TaskCard = ({ task, onDelete, onEdit, onView, index }) => {
 
       {/* Card Body */}
       <div className="px-6 pb-4">
-        <h3 className="font-bold text-slate-900 text-lg mb-2 line-clamp-2">{task.title}</h3>
-        <p className="text-slate-600 text-sm mb-4 line-clamp-3">{task.description}</p>
-
-        {/* Category Badge */}
-        <div className="mb-4">
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-cyan-700 bg-cyan-100">
-            • {task.category}
-          </span>
-        </div>
+        <h3 className="font-bold text-slate-900 text-lg mb-2 line-clamp-2 group-hover:text-cyan-600 transition">
+          {task.title}
+        </h3>
+        <p className="text-slate-600 text-sm mb-4 line-clamp-2">
+          {task.description || 'No description provided'}
+        </p>
       </div>
 
       {/* Card Footer - Stats */}
       <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-sm">
-        <div className="flex items-center gap-4 flex-1">
-          <div className="flex items-center gap-1 text-slate-600">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            <span>{task.date}</span>
-          </div>
+        <div className="flex items-center gap-4 flex-1 flex-wrap">
+          {task.deadline && (
+            <div className="flex items-center gap-1 text-slate-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{formatDate(task.deadline)}</span>
+            </div>
+          )}
 
-          <div className="flex items-center gap-1 text-slate-600">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
-              <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" />
-            </svg>
-            <span>{task.duration}</span>
-          </div>
+          {task.estimated_hours && (
+            <div className="flex items-center gap-1 text-slate-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{task.estimated_hours}h</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Card Footer - Assignment Info */}
-      <div className="px-6 py-3 flex items-center justify-between border-t border-slate-200">
-        <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-slate-600" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M9 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path d="M9 12a9 9 0 1118 0 9 9 0 01-18 0z" fillOpacity="0" />
-          </svg>
-          <span className="text-sm text-slate-600">{task.assigned} assigned</span>
+      {/* Submission Info */}
+      {task.submitted_at && (
+        <div className="px-6 py-3 border-t border-slate-200 bg-green-50">
+          <p className="text-xs text-green-700 font-semibold">
+            Submitted: {formatDate(task.submitted_at)}
+          </p>
         </div>
-        <span className="text-sm font-bold text-slate-900">{task.points} pts</span>
-      </div>
+      )}
+
+      {/* Delete Loading State */}
+      {isDeleting && (
+        <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center rounded-xl">
+          <div className="bg-white rounded-lg px-4 py-2">
+            <p className="text-sm font-semibold text-slate-700">Deleting...</p>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

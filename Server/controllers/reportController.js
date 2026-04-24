@@ -1,12 +1,12 @@
 const { Report, User } = require('../models');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendSuccess, sendError } = require('../utils/responseHandler');
 
 const submitReport = asyncHandler(async (req, res) => {
   const { content } = req.body;
 
   if (!content) {
-    res.status(400);
-    throw new Error('Report content is required');
+    return sendError(res, 'Report content is required', 400);
   }
 
   const report = await Report.create({
@@ -14,7 +14,7 @@ const submitReport = asyncHandler(async (req, res) => {
     content
   });
 
-  res.status(201).json(report);
+  sendSuccess(res, report, 'Report submitted successfully', 201);
 });
 
 const getReports = asyncHandler(async (req, res) => {
@@ -26,7 +26,7 @@ const getReports = asyncHandler(async (req, res) => {
     order: [['submitted_at', 'DESC']]
   });
 
-  res.status(200).json(reports);
+  sendSuccess(res, reports, 'Reports retrieved successfully', 200);
 });
 
 module.exports = {
